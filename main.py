@@ -8,6 +8,13 @@ import json
 import ssl
 import os
 
+# Load .env file if present (install: uv add python-dotenv)
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass  # python-dotenv not installed, rely on env vars being set externally
+
 app = FastAPI()
 
 app.add_middleware(

@@ -652,95 +652,28 @@ document.querySelectorAll('.p-card').forEach(card => {
         });
     }
 
-    // ── HF Token: set via backend proxy (main.py reads HF_TOKEN env var) ──
-    // Do NOT hardcode tokens in client-side JS. Use the /api/generate proxy instead.
-    const HF_TOKEN = '';
+    // ── AI Image Gen: calls backend proxy (main.py) which uses HF_TOKEN from .env ──
+    // The token is NEVER sent to the browser — all HF calls happen server-side.
+    const PROXY_URL = 'http://localhost:8000/api/generate';
 
-    const CHIBI_PROMPT = [
-        'kawaii chibi anime character, fluffy cat ears on head,',
-        'oversized round head, big glossy sparkly eyes, rosy blushing cheeks,',
-        'tiny nose, stubby little hands, cozy pastel hoodie,',
-        'soft pastel color palette, clean black outlines, anime cell-shading,',
-        'simple white background, high quality sticker style, no text, no watermark'
-    ].join(' ');
-
-    const NEGATIVE_PROMPT = 'realistic, photo, 3d, ugly, deformed, watermark, text, nsfw, blurry';
-
-    // ── AI Image Gen: HF instruct-pix2pix (img2img giữ khuôn mặt gốc) + FLUX fallback ──
     async function callAIImageGen(base64Jpeg) {
-        // ── Thử img2img: instruct-pix2pix (biến ảnh thật thành chibi mèo) ──
-        try {
-            const res = await fetch(
-                'https://router.huggingface.co/hf-inference/models/timbrooks/instruct-pix2pix',
-                {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${HF_TOKEN}`,
-                        'Content-Type': 'application/json',
-                        'X-Use-Cache': '0',
-                    },
-                    body: JSON.stringify({
-                        inputs: base64Jpeg,
-                        parameters: {
-                            prompt: `${CHIBI_PROMPT}, transform this person`,
-                            negative_prompt: NEGATIVE_PROMPT,
-                            guidance_scale: 8.0,
-                            image_guidance_scale: 1.3,
-                            num_inference_steps: 25,
-                        }
-                    })
-                }
-            );
-
-            if (res.ok) {
-                const blob = await res.blob();
-                return await blobToDataUrl(blob);
-            }
-
-            const errText = await res.text();
-            // Nếu model đang load (503) hoặc không có (404), fallback sang FLUX
-            if (res.status !== 503 && res.status !== 404) {
-                throw new Error(`img2img ${res.status}: ${errText.slice(0, 100)}`);
-            }
-            console.log('[CatCam] instruct-pix2pix unavailable, falling back to FLUX...');
-        } catch (e) {
-            if (!e.message?.includes('img2img')) throw e; // nếu lỗi không phải 503/404, ném lại
-            console.log('[CatCam] img2img error, fallback:', e.message);
-        }
-
-        // ── Fallback: FLUX.1-schnell text2img (luôn hoạt động) ──
-        const fluxRes = await fetch(
-            'https://router.huggingface.co/hf-inference/models/black-forest-labs/FLUX.1-schnell',
-            {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${HF_TOKEN}`,
-                    'Content-Type': 'application/json',
-                    'X-Use-Cache': '0',
-                },
-                body: JSON.stringify({
-                    inputs: CHIBI_PROMPT,
-                    parameters: { guidance_scale: 3.5, num_inference_steps: 4, width: 512, height: 512 }
-                })
-            }
-        );
-
-        if (!fluxRes.ok) {
-            const errText = await fluxRes.text();
-            throw new Error(`FLUX ${fluxRes.status}: ${errText.slice(0, 100)}`);
-        }
-
-        const blob = await fluxRes.blob();
-        return await blobToDataUrl(blob);
-    }
-
-    function blobToDataUrl(blob) {
-        return new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onloadend = () => resolve(reader.result);
-            reader.onerror = () => reject(new Error('Lỗi đọc ảnh'));
-            reader.readAsDataURL(blob);
+        const res = await fetch(PROXY_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ base64Jpeg })
         });
+
+        if (!res.ok) {
+            const errText = await res.text();
+            let detail = errText;
+            try { detail = JSON.parse(errText).detail ?? errText; } catch { }
+            throw new Error(`Proxy ${res.status}: ${String(detail).slice(0, 120)}`);
+        }
+
+        const data = await res.json();
+        // main.py trả về { result: "data:image/jpeg;base64,..." }
+        if (!data.result) throw new Error('Proxy không trả về ảnh');
+        return data.result;
     }
 
 })(); // end of IIFE
