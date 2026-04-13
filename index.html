@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Anh Xin Lỗi Em 🐱💕</title>
+  <meta name="theme-color" content="#ff85a1" />
+  <link rel="icon"
+    href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🥺</text></svg>" />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@400;600;800&family=Quicksand:wght@500;600;700&display=swap"
+    rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+
+<body>
+
+  <div id="floatLayer"></div>
+  <canvas id="sparkCanvas"></canvas>
+  <div id="catWalk">🐾</div>
+  <div id="overlay"></div>
+
+  <!-- HIDDEN SECRET TRIGGER (overlays the cat walk path on the left side) -->
+  <div id="secretTrigger"></div>
+
+  <!-- SECRET TOAST NOTIFICATION -->
+  <div id="secretToast">🐾 Chế độ ẩn đã mở khóa!</div>
+
+  <!-- ═══════════════════════ CAT CAM MODAL ═══════════════════════ -->
+  <div id="catCamModal">
+    <div id="catCamBox">
+      <button class="cam-btn-close" id="camCloseBtn" title="Đóng">✕</button>
+      <div id="catCamTitle">📸 Cat Cam 🐱✨</div>
+      <div id="catCamSubtitle">Chụp khuôn mặt của em — AI sẽ biến thành mèo chibi dễ thương!</div>
+
+      <!-- Camera preview -->
+      <video id="camPreview" autoplay playsinline muted></video>
+      <!-- Upload preview (shown when camera unavailable) -->
+      <img id="uploadPreview" src="" alt=""
+        style="display:none;width:100%;border-radius:18px;border:2px solid var(--pink-light);" />
+      <canvas id="camCanvas"></canvas>
+      <!-- Hidden file input -->
+      <input type="file" id="fileInput" accept="image/*" capture="user" style="display:none" />
+
+      <!-- Mode notice (shown when no camera) -->
+      <div id="noCamNotice"
+        style="display:none;background:rgba(255,133,161,.15);border:1.5px solid var(--pink-light);border-radius:14px;padding:.7rem 1rem;margin:.8rem 0;font-family:'Quicksand',sans-serif;font-size:.82rem;font-weight:600;color:#a0405e;">
+        📱 Trình duyệt không hỗ trợ camera trực tiếp qua HTTP.<br />
+        Hãy <b>chọn ảnh từ thư viện</b> hoặc dùng HTTPS.
+      </div>
+
+      <!-- Beauty Filters -->
+      <div id="beautyFilters">
+        <div class="beauty-label">✨ Beauty Filter</div>
+        <div class="beauty-chips">
+          <button class="beauty-chip" data-filter="none">🚫 Gốc</button>
+          <button class="beauty-chip active" data-filter="smooth">🌸 Mịn da</button>
+          <button class="beauty-chip" data-filter="darkcircle">💡 Xóa thâm</button>
+          <button class="beauty-chip" data-filter="acne">🧹 Mờ mụn</button>
+          <button class="beauty-chip" data-filter="glow">✨ Tươi sáng</button>
+          <button class="beauty-chip" data-filter="all">💎 Full Beauty</button>
+        </div>
+      </div>
+
+      <!-- Action buttons -->
+      <div id="catCamActions">
+        <button class="cam-btn cam-btn-primary" id="snapBtn">📸 Chụp ngay!</button>
+        <button class="cam-btn cam-btn-primary" id="uploadBtn" style="display:none">🖼️ Chọn ảnh</button>
+        <button class="cam-btn cam-btn-secondary" id="camCloseBtn2">✕ Đóng</button>
+      </div>
+
+      <!-- Loading state with cat progress bar -->
+      <div id="catCamLoading">
+        <div class="loading-text">AI đang vẽ mèo chibi cho em... ✨</div>
+        <div class="cat-progress-wrap">
+          <div class="cat-progress-track">
+            <div class="cat-progress-fill" id="catProgressFill"></div>
+            <div class="cat-runner" id="catRunner">
+              <span class="cat-run-emoji">🐱</span>
+              <div class="cat-paws">
+                <span>🐾</span><span>🐾</span><span>🐾</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="loading-sub">Đợi xíu nha~ 🌸</div>
+      </div>
+
+
+      <!-- Result display -->
+      <div id="catCamResult">
+        <img id="resultImg" src="" alt="Mèo chibi của em" />
+        <div id="resultLabel">🐾 Em trông dễ thương như mèo chibi rồi! 💕</div>
+        <div style="display:flex;gap:.6rem;flex-wrap:wrap;justify-content:center">
+          <button class="cam-btn cam-btn-primary" id="downloadBtn">💾 Tải ảnh về</button>
+          <button class="cam-btn cam-btn-secondary" id="retakeBtn">🔄 Chụp lại</button>
+        </div>
+      </div>
+
+      <!-- Gemini Web Fallback (shown when API quota is exceeded) -->
+      <div id="catCamFallback">
+        <div class="fallback-icon">🐱✨</div>
+        <div class="fallback-title">Mở Gemini để vẽ mèo chibi!</div>
+        <div class="fallback-desc">
+          📥 <b>Ảnh đã tự tải xuống rồi!</b><br />
+          Bây giờ hãy làm theo 2 bước:<br />
+          <span class="fallback-step">① Bấm nút bên dưới để mở Gemini</span>
+          <span class="fallback-step">② Dán ảnh vừa tải vào chat của Gemini</span>
+        </div>
+        <div style="display:flex;gap:.6rem;flex-wrap:wrap;justify-content:center;margin-top:.8rem">
+          <button class="cam-btn cam-btn-primary" id="openGeminiBtn">🚀 Mở Gemini Web</button>
+          <button class="cam-btn cam-btn-secondary" id="fallbackRetakeBtn">🔄 Chụp lại</button>
+        </div>
+      </div>
+
+      <!-- API key input (hidden by default, shown if key not set) -->
+      <div id="apiKeySection" style="display:none;margin-top:1rem">
+        <div
+          style="font-size:.8rem;font-family:'Quicksand',sans-serif;font-weight:600;color:#a0405e;margin-bottom:.4rem">
+          🔑 Nhập Gemini API Key để dùng tính năng này:
+        </div>
+        <input id="apiKeyInput" type="password" placeholder="AIza..." style="
+        width:100%;padding:.5rem .8rem;border-radius:12px;
+        border:1.5px solid var(--pink-light);font-family:'Quicksand',sans-serif;
+        font-size:.88rem;outline:none;color:#4a1828;
+      " />
+        <button class="cam-btn cam-btn-primary" id="saveApiKeyBtn" style="margin-top:.6rem;width:100%">
+          ✅ Lưu & Bắt đầu
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- AUDIO -->
+  <audio id="bgMusic" loop playsinline preload="auto">
+    <source src="assets/videos/Struck_Keys_and_Soft_Paws.mp4" type="audio/mp4" />
+  </audio>
+  <button id="musicBtn" title="Bật / Tắt nhạc">🎵</button>
+
+  <!-- ═══════════════════════ SLIDES ═══════════════════════ -->
+  <div id="slider">
+
+    <!-- SLIDE 1 – INTRO -->
+    <div class="slide active" id="s1">
+      <span class="slide-cat s1-cat" data-hint="✨ Bấm 2 lần để mở bí mật!">🐱</span>
+      <h1 class="s1-title">💌 Anh Xin Lỗi Em 💌<br /><span style="font-size:.65em">từ tận đáy lòng 🌸</span></h1>
+      <div class="chibi-pair">
+        <div class="chibi-wrap">
+          <div class="bubble">Anh xin lỗi em thật sự 😢</div>
+          <img class="chibi-img" src="assets/images/chibi_boy_sorry.png" alt="Anh chibi" />
+        </div>
+        <div class="chibi-wrap">
+          <div class="bubble">Anh làm em buồn rồi… 😤</div>
+          <img class="chibi-img" src="assets/images/chibi_girl_annoyed.png" alt="Em chibi" />
+        </div>
+      </div>
+      <div class="s1-hint">
+        <span>Click hoặc nhấn mũi tên để xem tiếp</span>
+        <span class="arrow-down">➡</span>
+      </div>
+      <div class="s1-paws">
+        <span>🐾</span><span>🐾</span><span>🐾</span><span>🐾</span><span>🐾</span><span>🐾</span>
+      </div>
+    </div>
+
+    <!-- SLIDE 2 – CÂU CHUYỆN -->
+    <div class="slide" id="s2">
+      <p class="slide-tag">01 / Chuyện đã xảy ra</p>
+      <h2 class="slide-heading dark">Anh sai rồi… 😔</h2>
+      <div class="chibi-pair">
+        <div class="chibi-wrap">
+          <div class="bubble">Anh nói câu đó vô tình 😓</div>
+          <img class="chibi-img" src="assets/images/chibi_boy_sorry.png" alt="Anh chibi" />
+        </div>
+        <div class="chibi-wrap">
+          <div class="bubble">Em không muốn nghe vậy! 😠</div>
+          <img class="chibi-img" src="assets/images/chibi_girl_annoyed.png" alt="Em chibi" />
+        </div>
+      </div>
+      <div class="scene-desc">
+        Anh đã nói câu vô tình khiến em hiểu lầm rằng anh nghĩ xấu về em — điều đó hoàn toàn không đúng và anh biết mình
+        sai.
+      </div>
+      <span class="slide-cat s2-cat" data-hint="✨ Bấm 2 lần để mở bí mật!">😿</span>
+      <span class="s2-tear">💧</span>
+    </div>
+
+    <!-- SLIDE 3 – THƯ XIN LỖI -->
+    <div class="slide" id="s3">
+      <span class="slide-cat s3-cat" data-hint="✨ Bấm 2 lần để mở bí mật!">🐱</span>
+      <span class="s3-tail">🐾</span>
+      <h2 class="slide-heading dark" style="margin-bottom:.8rem">💌 Thư Xin Lỗi</h2>
+      <div class="letter-card">
+        <div class="letter-deco">
+          <div class="deco-line"></div>
+          <span>🐾</span><span>💗</span><span>🐾</span>
+          <div class="deco-line r"></div>
+        </div>
+        <p class="letter-body" id="letterBody"></p>
+        <span class="cursor-blink" id="letterCursor"></span>
+        <div class="letter-sig" id="letterSig">— Khánh 🌸</div>
+      </div>
+    </div>
+
+    <!-- SLIDE 4 -- CAM KET -->
+    <div class="slide" id="s4">
+      <div class="s4-float-hearts">
+        <span>💗</span><span>🐾</span><span>💕</span><span>🐾</span><span>💗</span>
+      </div>
+      <p class="slide-tag">03 / Lời Hứa</p>
+      <h2 class="slide-heading">Anh Hứa Với Em 🤞</h2>
+      <div class="promise-grid">
+        <div class="p-card">🗣️ Sẽ chọn lời cẩn thận hơn</div>
+        <div class="p-card">🙈 Không bao giờ làm em buồn lại</div>
+        <div class="p-card">💎 Trân trọng em mỗi ngày</div>
+        <div class="p-card">🐱 Yêu chú mèo nhỏ xinh của anh</div>
+        <div class="p-card">🌸 Em quan trọng hơn tất cả</div>
+      </div>
+      <span class="slide-cat s4-cat" data-hint="✨ Bấm 2 lần để mở bí mật!">🐈</span>
+      <span class="s4-note">🎵</span>
+      <span class="s4-note">🎶</span>
+    </div>
+
+    <!-- SLIDE 5 – HAPPY ENDING -->
+    <div class="slide" id="s5">
+      <span class="slide-cat s5-cat-l" data-hint="✨ Bấm 2 lần để mở bí mật!">🐱</span>
+      <span class="slide-cat s5-cat-r" data-hint="✨ Bấm 2 lần để mở bí mật!">🐱</span>
+      <h2 class="slide-heading">Dù Sao Em Vẫn Là Chú Mèo nhỏ Của Anh nhé 🐈💕</h2>
+      <div class="hearts-anim">💕 🌸 💕 🌸 💕</div>
+      <img class="reconcile-img" src="assets/images/chibi_reconcile_scene.png" alt="Hai người làm hòa" />
+      <p class="final-msg">
+        Em không phải kiểu chỉ vì quà cáp mà đối xử tốt.<br />
+        Anh trân trọng tính cách em — chân thành và tình cảm như chú mèo nhỏ. 🐾
+      </p>
+    </div>
+
+  </div>
+
+  <button class="nav-btn" id="btnPrev">◀</button>
+  <button class="nav-btn" id="btnNext">▶</button>
+
+  <div id="dots">
+    <div class="dot active" data-i="0"></div>
+    <div class="dot" data-i="1"></div>
+    <div class="dot" data-i="2"></div>
+    <div class="dot" data-i="3"></div>
+    <div class="dot" data-i="4"></div>
+  </div>
+
+  <div id="counter">1 / 5</div>
+
+  <script src="js/script.js"></script>
+</body>
+
+</html>

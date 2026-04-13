@@ -1,0 +1,18 @@
+[project]
+name = "sr"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "anthropic>=0.94.0",
+    "dotenv>=0.9.9",
+    "fastapi>=0.135.3",
+    "google-genai>=1.72.0",
+    "google-generativeai>=0.8.6",
+    "openai>=2.31.0",
+    "packaging>=26.0",
+    "pollinations>=4.5.1",
+    "pydantic>=2.12.5",
+    "uvicorn>=0.44.0",
+]
