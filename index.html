@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="vi">
 
 <head>
@@ -114,13 +114,15 @@
         </div>
       </div>
 
-      <!-- API key input (hidden by default, shown if key not set) -->
+      <!-- HF token input (hidden by default, shown if token not set) -->
       <div id="apiKeySection" style="display:none;margin-top:1rem">
         <div
           style="font-size:.8rem;font-family:'Quicksand',sans-serif;font-weight:600;color:#a0405e;margin-bottom:.4rem">
-          🔑 Nhập Gemini API Key để dùng tính năng này:
+          🔑 Nhập <b>Hugging Face Token</b> để dùng tính năng này:<br/>
+          <a href="https://huggingface.co/settings/tokens" target="_blank"
+             style="color:#c28ef5;font-size:.75rem">👉 Lấy token miễn phí tại đây</a>
         </div>
-        <input id="apiKeyInput" type="password" placeholder="AIza..." style="
+        <input id="apiKeyInput" type="password" placeholder="hf_..." style="
         width:100%;padding:.5rem .8rem;border-radius:12px;
         border:1.5px solid var(--pink-light);font-family:'Quicksand',sans-serif;
         font-size:.88rem;outline:none;color:#4a1828;

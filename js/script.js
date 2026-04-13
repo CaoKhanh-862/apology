@@ -281,7 +281,6 @@ document.querySelectorAll('.p-card').forEach(card => {
 ══════════════════════════════════════════════════════ */
 (function () {
     // ── Config ──────────────────────────────────────────
-    const GEMINI_MODEL = 'gemini-2.5-flash-image';
     const SECRET_CLICKS = 5;    // number of clicks to unlock
     const CLICK_WINDOW = 3000; // ms window for clicks
 
@@ -289,7 +288,8 @@ document.querySelectorAll('.p-card').forEach(card => {
     let clickCount = 0;
     let clickTimer = null;
     let stream = null;
-    let apiKey = localStorage.getItem('__catcam_key') || 'AIzaSyBtxMCEWHByFa2-Y3tohWG5JDFeqfUem_4';
+    // HF token: user enters once, stored in localStorage (never in source code)
+    let hfToken = localStorage.getItem('__hf_token') || '';
     let activeFilter = 'smooth'; // default filter
 
     // Beauty filter definitions (CSS filter string + pixel processing flag)
@@ -383,7 +383,7 @@ document.querySelectorAll('.p-card').forEach(card => {
     function openCatCam() {
         resetState();
         modal.classList.add('open');
-        if (!apiKey) {
+        if (!hfToken) {
             apiSection.style.display = 'block';
             snapBtn.style.display = 'none';
         } else {
@@ -404,12 +404,12 @@ document.querySelectorAll('.p-card').forEach(card => {
     document.getElementById('camCloseBtn2').addEventListener('click', closeCatCam);
     modal.addEventListener('click', (e) => { if (e.target === modal) closeCatCam(); });
 
-    // ── API key save ────────────────────────────────────
+    // ── HF Token save ────────────────────────────────────
     saveKeyBtn.addEventListener('click', () => {
         const val = apiInput.value.trim();
         if (!val) return;
-        apiKey = val;
-        localStorage.setItem('__catcam_key', val);
+        hfToken = val;
+        localStorage.setItem('__hf_token', val);
         apiSection.style.display = 'none';
         snapBtn.style.display = '';
         startCamera();
@@ -652,28 +652,80 @@ document.querySelectorAll('.p-card').forEach(card => {
         });
     }
 
-    // ── AI Image Gen: calls backend proxy (main.py) which uses HF_TOKEN from .env ──
-    // The token is NEVER sent to the browser — all HF calls happen server-side.
-    const PROXY_URL = 'http://localhost:8000/api/generate';
+    const CHIBI_PROMPT = [
+        'kawaii chibi anime character, fluffy cat ears on head,',
+        'oversized round head, big glossy sparkly eyes, rosy blushing cheeks,',
+        'tiny nose, stubby little hands, cozy pastel hoodie,',
+        'soft pastel color palette, clean black outlines, anime cell-shading,',
+        'simple white background, high quality sticker style, no text, no watermark'
+    ].join(' ');
+    const NEGATIVE_PROMPT = 'realistic, photo, 3d, ugly, deformed, watermark, text, nsfw, blurry';
 
+    // ── AI Image Gen: gọi HF trực tiếp với token do user nhập (lưu localStorage) ──
     async function callAIImageGen(base64Jpeg) {
-        const res = await fetch(PROXY_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ base64Jpeg })
-        });
+        if (!hfToken) throw new Error('Chưa nhập Hugging Face Token!');
 
-        if (!res.ok) {
+        const hfHeaders = {
+            'Authorization': `Bearer ${hfToken}`,
+            'Content-Type': 'application/json',
+            'X-Use-Cache': '0',
+        };
+
+        // ── Thử img2img: instruct-pix2pix ──
+        try {
+            const res = await fetch(
+                'https://router.huggingface.co/hf-inference/models/timbrooks/instruct-pix2pix',
+                {
+                    method: 'POST', headers: hfHeaders,
+                    body: JSON.stringify({
+                        inputs: base64Jpeg,
+                        parameters: {
+                            prompt: `${CHIBI_PROMPT}, transform this person`,
+                            negative_prompt: NEGATIVE_PROMPT,
+                            guidance_scale: 8.0, image_guidance_scale: 1.3,
+                            num_inference_steps: 25,
+                        }
+                    })
+                }
+            );
+            if (res.ok) {
+                const blob = await res.blob();
+                return await blobToDataUrl(blob);
+            }
             const errText = await res.text();
-            let detail = errText;
-            try { detail = JSON.parse(errText).detail ?? errText; } catch { }
-            throw new Error(`Proxy ${res.status}: ${String(detail).slice(0, 120)}`);
+            if (res.status !== 503 && res.status !== 404)
+                throw new Error(`img2img ${res.status}: ${errText.slice(0, 100)}`);
+            console.log('[CatCam] pix2pix unavailable, fallback to FLUX...');
+        } catch (e) {
+            if (!e.message?.includes('img2img')) throw e;
         }
 
-        const data = await res.json();
-        // main.py trả về { result: "data:image/jpeg;base64,..." }
-        if (!data.result) throw new Error('Proxy không trả về ảnh');
-        return data.result;
+        // ── Fallback: FLUX.1-schnell text2img ──
+        const fluxRes = await fetch(
+            'https://router.huggingface.co/hf-inference/models/black-forest-labs/FLUX.1-schnell',
+            {
+                method: 'POST', headers: hfHeaders,
+                body: JSON.stringify({
+                    inputs: CHIBI_PROMPT,
+                    parameters: { guidance_scale: 3.5, num_inference_steps: 4, width: 512, height: 512 }
+                })
+            }
+        );
+        if (!fluxRes.ok) {
+            const errText = await fluxRes.text();
+            throw new Error(`FLUX ${fluxRes.status}: ${errText.slice(0, 100)}`);
+        }
+        const blob = await fluxRes.blob();
+        return await blobToDataUrl(blob);
+    }
+
+    function blobToDataUrl(blob) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result);
+            reader.onerror = () => reject(new Error('Lỗi đọc ảnh'));
+            reader.readAsDataURL(blob);
+        });
     }
 
 })(); // end of IIFE
