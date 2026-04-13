@@ -14,5 +14,6 @@ dependencies = [
     "packaging>=26.0",
     "pollinations>=4.5.1",
     "pydantic>=2.12.5",
+    "python-dotenv>=1.2.2",
     "uvicorn>=0.44.0",
 ]
